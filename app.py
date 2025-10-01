@@ -33,7 +33,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Sidebar
-st.sidebar.markdown("### <i class='fas fa-folder-open'></i> Carga los 4 archivos necesarios", unsafe_allow_html=True)
+st.sidebar.markdown("### <i class='fas fa-folder-open'></i> Carga los 3 archivos necesarios", unsafe_allow_html=True)
 encuesta_file = st.sidebar.file_uploader(" Encuesta ", type=["xlsx", "csv"])
 aforo_file = st.sidebar.file_uploader(" Potencial de Aforo ", type=["xlsx", "csv"])
 eed_file = st.sidebar.file_uploader(" EED ", type=["xlsx", "csv"])
