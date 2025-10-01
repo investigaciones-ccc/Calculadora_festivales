@@ -33,7 +33,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Sidebar
-st.sidebar.markdown("### <i class='fas fa-folder-open'></i> Carga los 3 archivos necesarios", unsafe_allow_html=True)
+st.sidebar.markdown("### <i class='fas fa-folder-open'></i> Carga los 4 archivos necesarios", unsafe_allow_html=True)
 encuesta_file = st.sidebar.file_uploader(" Encuesta ", type=["xlsx", "csv"])
 aforo_file = st.sidebar.file_uploader(" Potencial de Aforo ", type=["xlsx", "csv"])
 eed_file = st.sidebar.file_uploader(" EED ", type=["xlsx", "csv"])
@@ -48,8 +48,8 @@ if encuesta_file and aforo_file and eed_file:
         st.markdown("### <i class='fas fa-users'></i> Potencial de No Locales (PNL)", unsafe_allow_html=True)
 
         # Columnas usadas
-        col_reside = "¿Reside en la ciudad de Cartagena de Indias?"
-        col_motivo = "¿Cuál fue el motivo de su viaje a la ciudad de Cartagena?"
+        col_reside = "¿Reside en la ciudad donde se desarrolla este evento?"
+        col_motivo = "¿Cuál fue el motivo de su viaje a esta ciudad o municipio?"
 
         # Detectar categorías disponibles entre NO residentes
         try:

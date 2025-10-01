@@ -13,7 +13,7 @@ def extraer_columnas_validas(df_encuesta):
     """
     columnas_esperadas = {
         "gasto_evento": "¿Cuánto ha gastado aproximadamente en actividades relacionadas con LOS EVENTOS RELIGIOSOS DE SEMANA SANTA EN CARTAGENA (souvenirs, artesanías, libros, etc.)?",
-        "dias_estadia": "¿Cuántos días estará en la ciudad de Cartagena?",
+        "dias_estadia": "¿Cuántos días estará en la ciudad donde se desarrolla este evento?",
         "gasto_alojamiento": "¿Cuánto está gastando gasto diariamente en alojamiento? (Por persona):",
         "gasto_alimentacion": "En promedio ¿Cuánto ha sido su gasto diario en alimentación y bebidas durante su estadía en la ciudad?",
         "gasto_transporte": "En promedio ¿Cuánto ha sido su gasto diario en transporte durante su estadía en la ciudad?"
@@ -34,8 +34,8 @@ def extraer_columnas_validas(df_encuesta):
 
 def detectar_categorias_motivo(
     df_encuesta: pd.DataFrame,
-    columna_reside: str = "¿Reside en la ciudad de Cartagena de Indias?",
-    columna_motivo: str = "¿Cuál fue el motivo de su viaje a la ciudad de Cartagena?"
+    columna_reside: str = "¿Reside en la ciudad donde se desarrolla este evento?",
+    columna_motivo: str = "¿Cuál fue el motivo de su viaje a esta ciudad o municipio?"
 ) -> pd.Series:
     """
     Devuelve un Series con el conteo de categorías de motivo entre NO residentes.
@@ -76,8 +76,8 @@ def detectar_categorias_motivo(
 def calcular_pnl(
     df_encuesta: pd.DataFrame,
     df_aforo: pd.DataFrame,
-    columna_reside: str = "¿Reside en la ciudad de Cartagena de Indias?",
-    columna_motivo: str = "¿Cuál fue el motivo de su viaje a la ciudad de Cartagena?",
+    columna_reside: str = "¿Reside en la ciudad donde se desarrolla este evento?",
+    columna_motivo: str = "¿Cuál fue el motivo de su viaje a esta ciudad o municipio?",
     categoria_principal: str | None = None,
     peso_principal: float = 1.0,
     peso_otros: float = 0.5,
