@@ -3,7 +3,7 @@ import importlib
 import pandas as pd
 import io
 from backend import (
-    calcular_pnl,
+    calcular_poblacion,
     extraer_columnas_validas,
     evaluar_distribuciones,
     calcular_efecto_economico_indirecto,
@@ -75,10 +75,25 @@ if encuesta_file and aforo_file and eed_file:
             st.info("No se encontraron categorías de motivo entre NO residentes. Se usará selección automática en backend.")
             categoria_principal = None  # backend decide
 
+        st.subheader("Ponderadores para población NO LOCAL (PNL)")
         c1, c2 = st.columns(2)
-        peso_principal = c1.number_input("Peso categoría principal", min_value=0.0, value=1.0, step=0.1, format="%.2f")
-        peso_otros = c2.number_input("Peso otras categorías / sin respuesta", min_value=0.0, value=0.5, step=0.1, format="%.2f")
+        peso_principal_no_local = c1.number_input(
+            "Peso categoría principal (NO LOCALES)", min_value=0.0, value=1.0, step=0.1
+        )
+        peso_otros_no_local = c2.number_input(
+            "Peso otras categorías (NO LOCALES)", min_value=0.0, value=0.5, step=0.1
+        )
 
+        st.subheader("Ponderadores para población LOCAL (PL)")
+        c3, c4 = st.columns(2)
+        peso_principal_local = c3.number_input(
+            "Peso categoría principal (LOCALES)", min_value=0.0, value=1.0, step=0.1
+        )
+        peso_otros_local = c4.number_input(
+            "Peso otras categorías (LOCALES)", min_value=0.0, value=0.5, step=0.1
+        )
+
+        
         # ¿Hay >2 categorías? (solo entre NO residentes)
         hay_mas_de_dos = len(categorias_disponibles) > 2 if categorias_disponibles else False
 
@@ -103,50 +118,94 @@ if encuesta_file and aforo_file and eed_file:
                 factor_pt_n_sobre_rho = max(0.0, min(1.0, float(n_manual) / float(rho_manual))) if rho_manual else 0.0
                 st.caption(f"Factor de corrección aplicado (n/ρ): **{factor_pt_n_sobre_rho:.6f}**")
 
-        # Cálculo FINAL con/ sin corrección según checkbox
-        resultado_pnl = calcular_pnl(
+
+        tipo_poblacion = st.radio(
+            "Selecciona la población base para los efectos económicos:",
+            options=[
+                "No locales (PNL)",
+                "Locales (PL)",
+                "Ambos (PNL + PL)"
+            ],
+            index=0
+        )
+
+                # === Número de eventos asistidos (solo para locales) ===
+        n_eventos = None
+        if tipo_poblacion in ["Locales (PL)", "Ambos (PNL + PL)"]:
+            n_eventos = st.number_input(
+                "Número de eventos asistidos (solo para población local o ambos)",
+                min_value=0.0,
+                value=1.0,
+                step=0.5,
+                format="%.2f"
+            )
+
+
+        if tipo_poblacion == "No locales (PNL)":
+            tipo_backend = "no_local"
+        elif tipo_poblacion == "Locales (PL)":
+            tipo_backend = "local"
+        else:
+            tipo_backend = "ambos"
+
+
+        resultado_poblacion = calcular_poblacion(
             df_encuesta=df_encuesta,
             df_aforo=df_aforo,
             columna_reside=col_reside,
             columna_motivo=col_motivo,
             categoria_principal=categoria_principal,
-            peso_principal=peso_principal,
-            peso_otros=peso_otros,
+
+            # NUEVOS ARGUMENTOS
+            peso_principal_no_local=peso_principal_no_local,
+            peso_otros_no_local=peso_otros_no_local,
+            peso_principal_local=peso_principal_local,
+            peso_otros_local=peso_otros_local,
+
             activar_factor_correccion=activar_factor_correccion,
-            factor_pt_n_sobre_rho=factor_pt_n_sobre_rho  # <<< NUEVO
+            factor_pt_n_sobre_rho=factor_pt_n_sobre_rho,
+            tipo_poblacion=tipo_backend
         )
 
-        st.metric("PNL estimado", f"{resultado_pnl['PNL']:,.0f}")
+
+
+        st.metric(
+            f"Población estimada ({tipo_poblacion})",
+            f"{resultado_poblacion['Poblacion_estimacion']:,.0f}"
+        )
+
         st.write("Detalles:")
         st.write({
-            "Encuestados": resultado_pnl['total_encuestados'],
-            "No residentes": resultado_pnl['total_no_reside'],
-            "Motivo principal seleccionado": resultado_pnl['categoria_principal'],
-            "Total motivo principal": resultado_pnl['total_motivo_seleccionado'],
-            "Proporción de visitantes no residentes": f"{resultado_pnl['proporcion_turismo']:.2%}",
-            "Peso categoría principal (input)": f"{resultado_pnl['peso_principal']:.2f}",
-            "Peso otras categorías (input)": f"{resultado_pnl['peso_otros']:.2f}",
-            "N° categorías de motivo (no residentes)": resultado_pnl.get("num_categorias_motivo", None),
-            "Proporción de no residentes que, aunque viajan por otros motivos, terminan asistiendo al evento": f"{resultado_pnl.get('factor_correccion_aplicado', 0.0):.4f}",
-            # >>> NUEVOS CAMPOS TRAZABILIDAD PT
-            "Factor n/ρ (si aplica)": f"{resultado_pnl.get('factor_pt_n_sobre_rho', float('nan')):.6f}"
-                if resultado_pnl.get("correccion_activada") else "—",
+            "Encuestados": resultado_poblacion["total_encuestados"],
+            "Grupo seleccionado (local/no_local/ambos)": resultado_poblacion["tipo"],
+            "Total en el grupo": resultado_poblacion["total_grupo"],
+            "Motivo principal seleccionado": resultado_poblacion["categoria_principal"],
+            "Total motivo principal": resultado_poblacion["total_motivo_seleccionado"],
+            "Proporción del grupo sobre la muestra": f"{resultado_poblacion['proporcion_grupo']:.2%}",
+            "Peso categoría principal (input)": f"{resultado_poblacion['peso_principal']:.2f}",
+            "Peso otras categorías (input)": f"{resultado_poblacion['peso_otros']:.2f}",
+            "N° categorías de motivo": resultado_poblacion.get("num_categorias_motivo", None),
+            "Factor (otras categorías)": f"{resultado_poblacion.get('factor_correccion_aplicado', 0.0):.4f}",
+            "Factor n/ρ (si aplica)": (
+                f"{resultado_poblacion.get('factor_pt_n_sobre_rho', float('nan')):.6f}"
+                if resultado_poblacion.get("correccion_activada") else "—"
+            ),
         })
 
         # Pruebas de normalidad de encuestas no residentes.
         st.markdown("### <i class='fas fa-microscope'></i> Evaluación de distribución de variables", unsafe_allow_html=True)
 
-        columnas_numericas = resultado_pnl["no_reside"].select_dtypes(include='number').columns.tolist()
+        df_base = resultado_poblacion["grupo"]
+        columnas_numericas = df_base.select_dtypes(include='number').columns.tolist()
         columnas_seleccionadas = st.multiselect(
             "Selecciona columnas para análisis estadístico",
-            options=resultado_pnl["no_reside"].columns,
+            options=df_base.columns,
             default=[col for col in columnas_numericas if col not in ['orden', 'secuencia_p']]
         )
 
         if columnas_seleccionadas:
             from backend import evaluar_distribuciones
-            resultados_stats = evaluar_distribuciones(resultado_pnl["no_reside"], columnas_seleccionadas)
-
+            resultados_stats = evaluar_distribuciones(df_base, columnas_seleccionadas)
             df_resultados = pd.DataFrame(resultados_stats).T
             st.dataframe(df_resultados.style.format({
                 "p_value": "{:.3f}",
@@ -207,7 +266,7 @@ if encuesta_file and aforo_file and eed_file:
 
             resultado_indirecto, desglose = calcular_efecto_economico_indirecto(
                 stats=resultados_stats,
-                pnl=resultado_pnl["PNL"],
+                pnl=resultado_poblacion["Poblacion_estimacion"],
                 multiplicador=m_general,
                 multiplicadores={
                     "alojamiento": m_aloj,
@@ -218,8 +277,11 @@ if encuesta_file and aforo_file and eed_file:
                 col_alim=col_alim,
                 col_trans=col_trans,
                 col_dias=col_dias,
-                extras=extras_cfg,  # <<< NUEVO
+                extras=extras_cfg,
+                n_eventos=n_eventos,              # <<< NUEVO
+                modo_local=(tipo_backend != "no_local")  # <<< NUEVO
             )
+
 
             extras_str = " | ".join([f"{ex['name']}: {ex['mult']:.4f}" for ex in extras_cfg]) if extras_cfg else ""
             st.markdown(
@@ -299,12 +361,15 @@ if encuesta_file and aforo_file and eed_file:
             from backend import calcular_desglose_por_sectores
             df_sectorial, trazas_sector = calcular_desglose_por_sectores(
                 df_eed=df_eed,
-                pnl=resultado_pnl["PNL"],
+                pnl=resultado_poblacion["Poblacion_estimacion"],
                 dias_usado=dias_sectores,
                 col_sector="Sector_EED",
                 col_valor="V_EED",
-                config_sectores=config_sectores
+                config_sectores=config_sectores,
+                n_eventos=n_eventos,            # <<< NUEVO
+                modo_local=(tipo_backend != "no_local")  # <<< NUEVO
             )
+
 
             def _fmt_num(x):
                 try:
@@ -339,7 +404,7 @@ if encuesta_file and aforo_file and eed_file:
             )
 
             resumen = {
-                "PNL": resultado_indirecto["PNL"],
+                "Población base usada": resultado_poblacion["Poblacion_estimacion"],
                 "Días de estadía (valor usado)": resultado_indirecto["Días de estadía (valor usado)"],
                 "Multiplicador general": resultado_indirecto["Multiplicador general"],
                 "Multiplicador alojamiento": resultado_indirecto["Multiplicador alojamiento"],
